@@ -1,0 +1,89 @@
+= ntpguard
+
+This project contains utilities for detection and blocking of known broken NTP
+clients that cause major problems for public NTP servers (e.g. pool.ntp.org).
+
+Currently are supported:
+
+* https://weberblog.net/fortigate-bug-firewalls-sending-excessive-requests-to-the-ntp-pool/[Fortigate]
+* https://github.com/systemd/systemd/issues/17470[systemd-timesyncd]
+
+== Requirements
+
+* C compiler
+* make
+* libpcap development files
+* python3
+* https://github.com/ovh/python-ovh[python-ovh] (needed only for OVH firewall
+  configuration)
+
+== detector
+
++detector+ is a C program using libpcap to inspect NTP traffic on a server
+and detect the known broken client implementations sending at least 500
+requests per second. The timestamp, address, port, rate, and client
+implementation are written to the standard output. The program uses an
+optimized pcap filter to minimize the CPU usage. The interface name is
+specified by the +-i+ option (default is `eth0`).
+
+----
+Usage: ./detector [-b <bufsize>] [-i <iface>|-] [-s <sampling>]
+----
+
+== fw-rules
+
++fw-rules+ is a python script used to process the +detector+'s logs and print a
+configurable number of rules (by default 20) to be loaded in a firewall. The
+script tries to find the smallest networks (by default up to /16) that will
+provide a requested coverage of the logged incidents (by default 80%). The
+packets rates are the weights of the IP addresses. There is a compromise
+between the number of rules, coverage, and number of addresses that will be
+blocked incorrectly.
+
+----
+Usage: fw-rules.py [OPTION]... LOGFILE...
+
+Prepare firewall rules from detector logs
+
+Options:
+  -h, --help            show this help message and exit
+  -n MAX_NETS, --max-nets=MAX_NETS
+                        set maximum number of blocked networks (20)
+  -p MIN_PREFIX, --min-prefix=MIN_PREFIX
+                        set minimum network prefix length (16)
+  -c COVERAGE, --coverage=COVERAGE
+                        set target rate coverage in % (80)
+  -i IGNORED_CLIENT, --ignore-client=IGNORED_CLIENT
+                        ignore client type
+  -x, --intersect       ignore addresses not present in all log files
+----
+
+
+== fw-conf-ovh
+
++fw-conf-ovh+ is a python script that loads the rules printed by +fw-rules+
+into the OVH edge network firewall. It can also list and delete existing rules.
+
+The API access needs to be configured in `ovh.conf`. See the
+https://github.com/ovh/python-ovh[python-ovh] documentation for how to get and
+specify the application key and secret. A new consumer key (token) can be
+requested by +fw-conf-ovh.py -m token+. Validate the token at the printed URL
+and specify it in `ovh.conf` as +consumer_key+. Make sure the firewall is
+created (it does not have to be enabled) in the OVH management panel for each
+IP address you want to configure.
+
+----
+Usage: fw-conf-ovh.py [OPTION]... IP-ADDRESS...
+
+Manage OVH firewall for an NTP server
+
+Options:
+  -h, --help            show this help message and exit
+  -m MODE, --mode=MODE  select mode: token, list, delete, set (list)
+  -r RULE_FILE, --rule-file=RULE_FILE
+                        specify path to file containing rules in "set" mode
+  -f FIRST_INDEX, --first-index=FIRST_INDEX
+                        specify index of first rule to operate on (0)
+  -l LAST_INDEX, --last-index=LAST_INDEX
+                        specify index of last rule to operate on (19)
+----

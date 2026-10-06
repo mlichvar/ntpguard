@@ -10,7 +10,7 @@ import time
 parser = optparse.OptionParser(usage="Usage: %prog [OPTION]... IP-ADDRESS...",
                                description="Manage OVH firewall for an NTP server")
 parser.add_option("-m", "--mode", dest="mode", default="list",
-                  help="select mode: token, list, delete, set (list)")
+                  help="select mode: token, list, delete, set (list), unrescue")
 parser.add_option("-r", "--rule-file", dest="rule_file",
                   help="specify path to file containing rules in \"set\" mode")
 parser.add_option("-f", "--first-index", dest="first_index", type="int", default=0,
@@ -21,8 +21,8 @@ parser.add_option("-l", "--last-index", dest="last_index", type="int", default=1
 (options, ip_addrs) = parser.parse_args()
 allowed_indices = set(range(options.first_index, options.last_index + 1))
 
-if (options.mode not in ["token", "list", "delete", "set"] or \
-        len(ip_addrs) == 0 and options.mode != "token") or \
+if (options.mode not in ["token", "list", "delete", "set", "unrescue"] or \
+        len(ip_addrs) == 0 and options.mode not in ("token", "unrescue")) or \
         (options.mode == "set" and options.rule_file is None):
     parser.print_help()
     sys.exit(1)
@@ -32,6 +32,8 @@ client = ovh.Client()
 if options.mode == "token":
     ck = client.new_consumer_key_request()
     ck.add_recursive_rules(ovh.API_READ_WRITE, '/ip/*/firewall')
+    ck.add_rules(ovh.API_READ_ONLY, '/vps')
+    ck.add_rules(ovh.API_READ_WRITE, '/vps/*')
 
     validation = ck.request()
     print(f"Validate token {validation['consumerKey']} at:\n{validation['validationUrl']}")
@@ -99,3 +101,13 @@ if options.mode == "set":
 
         print(f"Enabling firewall {ip}")
         client.put(f"/ip/{ip}/firewall/{ip}", enabled = True)
+
+if options.mode == "unrescue":
+    for name in client.get(f"/vps"):
+        vps = client.get(f"/vps/{name}")
+        print(f"{name} is in {vps["netbootMode"]} mode: ", end="")
+        if vps["netbootMode"] == "rescue":
+            print(f"switching to local")
+            client.put(f"/vps/{name}", netbootMode="local")
+        else:
+            print(f"ok")

@@ -62,7 +62,8 @@ Options:
 == fw-conf-ovh
 
 +fw-conf-ovh+ is a python script that loads the rules printed by +fw-rules+
-into the OVH edge network firewall. It can also list and delete existing rules.
+into the OVH edge network firewall. It can also list and delete existing rules,
+and recover VPSes forcibly rebooted in the rescue mode.
 
 The API access needs to be configured in `ovh.conf`. See the
 https://github.com/ovh/python-ovh[python-ovh] documentation for how to get and
@@ -79,7 +80,7 @@ Manage OVH firewall for an NTP server
 
 Options:
   -h, --help            show this help message and exit
-  -m MODE, --mode=MODE  select mode: token, list, delete, set (list)
+  -m MODE, --mode=MODE  select mode: token, list, delete, set (list), unrescue
   -r RULE_FILE, --rule-file=RULE_FILE
                         specify path to file containing rules in "set" mode
   -f FIRST_INDEX, --first-index=FIRST_INDEX

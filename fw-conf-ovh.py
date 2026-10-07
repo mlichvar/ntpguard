@@ -105,7 +105,7 @@ if options.mode == "set":
 if options.mode == "unrescue":
     for name in client.get(f"/vps"):
         vps = client.get(f"/vps/{name}")
-        print(f"{name} is in {vps["netbootMode"]} mode: ", end="")
+        print(f"{name} is in {vps['netbootMode']} mode: ", end="")
         if vps["netbootMode"] == "rescue":
             print(f"switching to local")
             client.put(f"/vps/{name}", netbootMode="local")
